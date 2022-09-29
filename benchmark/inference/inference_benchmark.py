@@ -54,6 +54,8 @@ def run(args: argparse.ArgumentParser) -> None:
                         batch_size=batch_size,
                         shuffle=False,
                         num_workers=args.num_workers,
+                        use_cpu_worker_affinity=False,
+                        cpu_worker_affinity_cores=None
                     )
 
                 for layers in args.num_layers:
@@ -67,6 +69,8 @@ def run(args: argparse.ArgumentParser) -> None:
                             batch_size=batch_size,
                             shuffle=False,
                             num_workers=args.num_workers,
+                            use_cpu_worker_affinity=False,
+                            cpu_worker_affinity_cores=None
                         )
 
                     for hidden_channels in args.num_hidden_channels:
