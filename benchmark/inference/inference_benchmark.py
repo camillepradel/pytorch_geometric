@@ -15,8 +15,9 @@ supported_sets = {
     'Reddit': ['edge_cnn', 'gat', 'gcn', 'pna', 'sage'],
 }
 
-
-TOTAL_CORES = 48
+SOCKETS = 2
+CORES = 24
+TOTAL_CORES = SOCKETS*CORES
 HT = True # hyperthreading 
 
 def run(args: argparse.ArgumentParser) -> None:
@@ -54,7 +55,7 @@ def run(args: argparse.ArgumentParser) -> None:
 
                         cmds = []
                         cmds.append(f"echo HYPERTHREADING: {HT}")
-                        cmds.append(f"CPU WORKER AFFINITY: {use_cpu_worker_affinity}")
+                        cmds.append(f"echo CPU WORKER AFFINITY: {use_cpu_worker_affinity}")
 
                         omp_num_threads=24-num_workers
                         os.environ["OMP_NUM_THREADS"] = str(omp_num_threads)
@@ -65,7 +66,7 @@ def run(args: argparse.ArgumentParser) -> None:
                             gomp_cpu_affinity=list(range(cpu_worker_affinity_cores[-1]+1, omp_num_threads))
                             
                         if gomp and HT:
-                            gomp_cpu_affinity=list(range(cpu_worker_affinity_cores[-1]+1, 24)) + list(range(49,64))
+                            gomp_cpu_affinity=list(range(cpu_worker_affinity_cores[-1]+1, CORES)) + list(range(TOTAL_CORES+1,TOTAL_CORES*2))
                         
                         if gomp:
                             gomp_cpu_affinity = ''.join([f"{i}, " for i in gomp_cpu_affinity])
