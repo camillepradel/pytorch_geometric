@@ -101,16 +101,15 @@ def run(args: argparse.ArgumentParser) -> None:
 
                     for layers in NUM_LAYERS:
                         # limit number of neighs
-                        num_neighbors = HETERO_NEIGHBORS
                         if hetero:
                             # batch-wise inference
                             subgraph_loader = NeighborLoader(
                                 data,
-                                num_neighbors=num_neighbors,
+                                num_neighbors=HETERO_NEIGHBORS,
                                 input_nodes=mask,
                                 batch_size=BATCH_SIZE,
                                 shuffle=False,
-                                num_workers=args.num_workers,
+                                num_workers=num_workers,
                             )
 
 
