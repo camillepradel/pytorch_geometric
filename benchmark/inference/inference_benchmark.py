@@ -58,7 +58,7 @@ def run(args: argparse.ArgumentParser) -> None:
                     cpu_aff_cores= list(range(num_workers))
                     
                     cmds = []
-                    cmds.append(f"echo HYPERTHREADING: {HT}")
+                    cmds.append(f"echo HYPERTHREADING: {hyperthreading}")
                     cmds.append(f"echo NR_WORKERS: {num_workers}")
                     omp_num_threads=TOTAL_CORES-num_workers
                     os.environ["OMP_NUM_THREADS"] = str(omp_num_threads)
