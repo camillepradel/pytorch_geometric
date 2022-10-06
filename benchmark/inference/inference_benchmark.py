@@ -18,6 +18,11 @@ CORES = 56
 TOTAL_CORES = SOCKETS*CORES
 MODELS = {'gcn':'Reddit', 'gat':'Reddit', 'rgcn':'ogbn-mag'}
 HT = ['off', 'on']
+WARMUP = 1
+BATCH_SIZE = 512
+NUM_HIDDEN_CHANNELS = [64]
+NUM_LAYERS = [2]
+HETERO_NEIGHBORS = [3, 5]
 
 def run(args: argparse.ArgumentParser) -> None:
 
@@ -86,7 +91,7 @@ def run(args: argparse.ArgumentParser) -> None:
                             data,
                             num_neighbors=[-1],  # layer-wise inference
                             input_nodes=mask,
-                            batch_size=args.eval_batch_sizes[0],
+                            batch_size=BATCH_SIZE,
                             shuffle=False,
                             num_workers=num_workers,
                             use_cpu_worker_affinity=cpu_affinity,
@@ -94,24 +99,24 @@ def run(args: argparse.ArgumentParser) -> None:
                         )
                     
 
-                    for layers in args.num_layers:
+                    for layers in NUM_LAYERS:
                         # limit number of neighs
-                        num_neighbors = [3, 5]
+                        num_neighbors = HETERO_NEIGHBORS
                         if hetero:
                             # batch-wise inference
                             subgraph_loader = NeighborLoader(
                                 data,
                                 num_neighbors=num_neighbors,
                                 input_nodes=mask,
-                                batch_size=args.eval_batch_sizes[0],
+                                batch_size=BATCH_SIZE,
                                 shuffle=False,
                                 num_workers=args.num_workers,
                             )
 
 
-                        for hidden_channels in args.num_hidden_channels:
+                        for hidden_channels in NUM_HIDDEN_CHANNELS:
                             print('----------------------------------------------')
-                            print(f'Batch size={args.eval_batch_sizes[0]}, '
+                            print(f'Batch size={BATCH_SIZE}, '
                                 f'Layers amount={layers}, '
                                 f'Num_neighbors={num_neighbors}, '
                                 f'Hidden features size={hidden_channels}, '
@@ -138,7 +143,7 @@ def run(args: argparse.ArgumentParser) -> None:
                             model.eval()
 
                             with amp:
-                                for _ in range(args.warmup):
+                                for _ in range(1):
                                     model.inference(subgraph_loader, device,
                                                     progress_bar=True)
                                 with timeit():
