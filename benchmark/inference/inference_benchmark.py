@@ -34,7 +34,7 @@ def run(args: argparse.ArgumentParser) -> None:
         ht_cmd = f'echo {hyperthreading} > /sys/devices/system/cpu/smt/control'
         os.system(ht_cmd)
         ht_test = os.popen("cat /sys/devices/system/cpu/smt/active")
-        assert int(ht_test) == 0 if HT == 'off' else int(ht_test) == 1, "Hyperthreading setting didn't change!"
+        #assert int(ht_test) == 0 if HT == 'off' else int(ht_test) == 1, "Hyperthreading setting didn't change!"
         for model_name, dataset_name in MODELS.items():
             print(f'Evaluation bench for {model_name}:')
             assert dataset_name in supported_sets.keys(
