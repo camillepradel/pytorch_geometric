@@ -116,7 +116,7 @@ def run(args: argparse.ArgumentParser) -> None:
                             print('----------------------------------------------')
                             print(f'Batch size={BATCH_SIZE}, '
                                 f'Layers amount={layers}, '
-                                f'Num_neighbors={num_neighbors}, '
+                                f'Num_neighbors={HETERO_NEIGHBORS if hetero else [-1]}, '
                                 f'Hidden features size={hidden_channels}, '
                                 f'Sparse tensor={args.use_sparse_tensor}')
                             params = {
