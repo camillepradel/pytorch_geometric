@@ -32,10 +32,9 @@ def run(args: argparse.ArgumentParser) -> None:
     for hyperthreading in HT:
         print(f'Setting hyperthreading: {hyperthreading.upper()}')
         ht_cmd = f'echo {hyperthreading} > /sys/devices/system/cpu/smt/control'
-        test_ht_cmd = "cat /sys/devices/system/cpu/smt/active"
         os.system(ht_cmd)
-        os.system(test_ht_cmd)
-        
+        ht_test = os.popen("cat /sys/devices/system/cpu/smt/active")
+        assert int(ht_test) == 0 if HT == 'off' else int(ht_test) == 1, "Hyperthreading setting didn't change!"
         for model_name, dataset_name in MODELS.items():
             print(f'Evaluation bench for {model_name}:')
             assert dataset_name in supported_sets.keys(
