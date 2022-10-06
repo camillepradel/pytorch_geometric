@@ -51,7 +51,7 @@ def run(args: argparse.ArgumentParser) -> None:
                         f'not supported. Skipping.')
                 continue
             
-            for num_workers in [0,1,2,3,4,8,12,16,20,24,30,36,44,56]:
+            for num_workers in [0,1]:#,2,3,4,8,12,16,20,24,30,36,44,56]:
                 for cpu_affinity in [True, False]:
                     if num_workers == 0 and cpu_affinity:
                         continue
