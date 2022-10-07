@@ -144,9 +144,14 @@ def run(args: argparse.ArgumentParser) -> None:
                                 for _ in range(1):
                                     model.inference(subgraph_loader, device,
                                                     progress_bar=True)
+                                    except RuntimeError:
+                                        continue
+                                    
                                 with timeit():
                                     model.inference(subgraph_loader, device,
                                                     progress_bar=True)
+                                    except RuntimeError:
+                                        continue
 
                                 if args.profile:
                                     with torch_profile():
