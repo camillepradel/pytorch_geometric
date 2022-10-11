@@ -37,6 +37,7 @@ for nr_workers in ${NUM_WORKERS[@]}; do
                     continue
                 fi
                 echo "AFFINITY:" $aff
+                if [ $aff = 1 ]; then
                     lower=$nr_workers
                     upper=$((TOTAL_CORES - 1))
                     export OMP_SCHEDULE=STATIC
