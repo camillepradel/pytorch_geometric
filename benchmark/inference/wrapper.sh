@@ -33,7 +33,6 @@ for nr_workers in ${NUM_WORKERS[@]}; do
             echo "HYPERTHREADING:" $(cat /sys/devices/system/cpu/smt/active)
             for aff in ${AFFINITY[@]}; do
                 if [ $aff = 1 ] && [ $nr_workers = 0 ]; then
-                    echo "skip"
                     continue
                 fi
                 echo "AFFINITY:" $aff
