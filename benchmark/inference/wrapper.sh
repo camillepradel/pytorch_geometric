@@ -5,10 +5,10 @@ CORES=56
 TOTAL_CORES=SOCKETS*CORES
 
 # loop variables
-declare -a HT=(0 1)
-declare -a AFFINITY=(0 1)
-declare -a MODELS=('gcn' 'gat' 'rgcn')
-declare -a NUM_WORKERS=(0 1 2 3 4 8 12 16 20 24)
+HT=(0 1)
+AFFINITY=(0 1)
+MODELS=('gcn' 'gat' 'rgcn')
+NUM_WORKERS=(0 1 2 3 4 8 12 16 20 24)
 
 # inputs for the script
 BATCH_SIZE=256
@@ -27,7 +27,7 @@ for nr_workers in ${NUM_WORKERS[@]}; do
                 echo off > /sys/devices/system/cpu/smt/control
             fi
             echo "HYPERTHREADING:" $(cat /sys/devices/system/cpu/smt/active)
-            for aff in ${CPU_AFFINITY[@]}; do
+            for aff in ${AFFINITY[@]}; do
             echo "AFFINITY:" $aff
                 if [ $aff = 1 ] && [ $nr_workers = 0 ]; then
                     echo "skip"
