@@ -1,0 +1,5 @@
+BENCHMARK STARTS
+Evaluation bench for gcn:
+----------------------------------------------
+Batch size=256, Layers amount=2, Num_neighbors=[3, 3], Hidden features size=16, Sparse tensor=True
+Time: 68.49453306s

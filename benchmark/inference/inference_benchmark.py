@@ -39,6 +39,7 @@ def run(args: argparse.ArgumentParser) -> None:
             else:
                 amp = torch.cpu.amp.autocast(enabled=args.bf16)
             if not hetero:
+                num_neighbors = [-1] * layers
                 subgraph_loader = NeighborLoader(
                     data,
                     num_neighbors=[-1],  # layer-wise inference
@@ -52,8 +53,9 @@ def run(args: argparse.ArgumentParser) -> None:
             
 
             for layers in args.num_layers:
-                num_neighbors = [args.hetero_num_neighbors] * layers
+                
                 if hetero:
+                    num_neighbors = [args.hetero_num_neighbors] * layers
                     # batch-wise inference
                     subgraph_loader = NeighborLoader(
                         data,

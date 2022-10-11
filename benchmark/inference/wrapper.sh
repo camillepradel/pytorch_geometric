@@ -1,10 +1,7 @@
 #!/bin/sh
 
-# input - pythonpath
-CORES=$1
-python=$2
-
 # CPU SPECS - PHYSICAL CORES ONLY
+CORES=$(lscpu | grep "Core(s)" | cut -f2 -d":")
 SOCKETS=2
 TOTAL_CORES=$((SOCKETS * CORES))
 echo "TOTAL_CORES:" $TOTAL_CORES
@@ -14,10 +11,10 @@ echo "PYTHON:" $python
 declare -a HT=(0 1)
 declare -a AFFINITY=(0 1)
 declare -a MODELS=('gcn' 'gat' 'rgcn')
-declare -a NUM_WORKERS=(0 1 2 3 4 8 12 16 20 24)
+declare -a NUM_WORKERS=(0 1 2 3 4 8 12 16 20)
 
 # inputs for the script
-BATCH_SIZE=256
+BATCH_SIZE=512
 NUM_HIDDEN_CHANNELS=16
 NUM_LAYERS=2
 HETERO_NEIGHBORS=3
@@ -43,13 +40,18 @@ for nr_workers in ${NUM_WORKERS[@]}; do
                 if [ $aff = 1 ]; then
                     lower=$nr_workers-1
                     upper=$TOTAL_CORES-1
-                    #export OMP_SCHEDULE=STATIC
-                    #export OMP_PROC_BIND=CLOSE
+                    export OMP_SCHEDULE=STATIC
+                    export OMP_PROC_BIND=CLOSE
                     export GOMP_CPU_AFFINITY="${lower}-${upper}"
                     echo "GOMP_CPU_AFFINITY: " $(echo $GOMP_CPU_AFFINITY)
                     
                 fi
-                export OMP_NUM_THREADS=$((TOTAL_CORES - nr_workers))
+
+                OMP_NUM_THREADS=$((TOTAL_CORES - nr_workers))
+                if [OMP_NUM_THREADS > 64]; then
+                    export NUMEXPR_MAX_THREADS=$OMP_NUM_THREADS
+                fi
+                export OMP_NUM_THREADS=$OMP_NUM_THREADS
                 log="${model}_HT${ht}A${aff}W${nr_workers}.log"
 
                 echo "OMP_NUM_THREADS: " $(echo $OMP_NUM_THREADS)
@@ -57,6 +59,8 @@ for nr_workers in ${NUM_WORKERS[@]}; do
                 echo "MODEL: " $model  
                 echo "LOG: " $log
                 
+                python=$(which python)
+
                 $python -u inference_benchmark.py --models $model --num-workers $nr_workers --eval-batch-sizes $BATCH_SIZE --num-layers $NUM_LAYERS --num-hidden-channels $NUM_HIDDEN_CHANNELS --hetero-num-neighbors $HETERO_NEIGHBORS --warmup $WARMUP --cpu_affinity $aff --use-sparse-tensor | tee $log
 
             done
