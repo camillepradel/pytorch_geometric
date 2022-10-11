@@ -16,6 +16,10 @@ NUM_HIDDEN_CHANNELS=16
 NUM_LAYERS=2
 HETERO_NEIGHBORS=3
 WARMUP=0
+
+# input - pythonpath
+python=$1
+echo $python
 # for each model run benchmark in 4 configs: NO_HT+NO_AFF, NO_HT+AFF, HT+NO_AFF, HT+AFF
 for nr_workers in ${NUM_WORKERS[@]}; do
     # do the math
@@ -28,7 +32,7 @@ for nr_workers in ${NUM_WORKERS[@]}; do
             fi
             echo "HYPERTHREADING:" $(cat /sys/devices/system/cpu/smt/active)
             for aff in ${AFFINITY[@]}; do
-            echo "AFFINITY:" $aff
+                echo "AFFINITY:" $aff
                 if [ $aff = 1 ] && [ $nr_workers = 0 ]; then
                     echo "skip"
                     continue
@@ -45,12 +49,12 @@ for nr_workers in ${NUM_WORKERS[@]}; do
                 export OMP_NUM_THREADS=$((TOTAL_CORES - nr_workers))
                 log="${model}_HT${ht}A${aff}W${nr_workers}.log"
 
-                echo "OMP_NUM_THREADS: " $OMP_NUM_THREADS
+                echo "OMP_NUM_THREADS: " $(echo $OMP_NUM_THREADS)
                 echo "NR_WORKERS: " $nr_workers
                 echo "MODEL: " $model  
                 echo "LOG: " $log
                 
-                /home/sdp/miniconda3/envs/pyg/bin/python inference_benchmark.py --models $model --num-workers $nr_workers --eval-batch-sizes $BATCH_SIZE --num-layers $NUM_LAYERS --num-hidden-channels $NUM_HIDDEN_CHANNELS --hetero-num-neighbors $HETERO_NEIGHBORS --warmup $WARMUP --cpu_affinity $aff --use-sparse-tensor | tee $log
+                $python inference_benchmark.py --models $model --num-workers $nr_workers --eval-batch-sizes $BATCH_SIZE --num-layers $NUM_LAYERS --num-hidden-channels $NUM_HIDDEN_CHANNELS --hetero-num-neighbors $HETERO_NEIGHBORS --warmup $WARMUP --cpu_affinity $aff --use-sparse-tensor | tee $log
 
             done
         done
