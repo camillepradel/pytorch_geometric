@@ -11,9 +11,6 @@ supported_sets = {
     'gcn':'Reddit'
 }
 
-class MemOverflow(Exception):
-    pass
-
 def run(args: argparse.ArgumentParser) -> None:
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -33,16 +30,31 @@ def run(args: argparse.ArgumentParser) -> None:
             'paper'].num_features if dataset_name == 'ogbn-mag' \
             else dataset.num_features
 
-        try:
-            if torch.cuda.is_available():
-                amp = torch.cuda.amp.autocast(enabled=False)
-            else:
-                amp = torch.cpu.amp.autocast(enabled=args.bf16)
-            if not hetero:
-                num_neighbors = [-1] * layers
+        if torch.cuda.is_available():
+            amp = torch.cuda.amp.autocast(enabled=False)
+        else:
+            amp = torch.cpu.amp.autocast(enabled=args.bf16)
+        if not hetero:
+            subgraph_loader = NeighborLoader(
+                data,
+                num_neighbors=[-1],  # layer-wise inference
+                input_nodes=mask,
+                batch_size=args.eval_batch_sizes[0],
+                shuffle=False,
+                num_workers=args.num_workers,
+                use_cpu_worker_affinity = (True if args.cpu_affinity == 1 else False),
+                cpu_worker_affinity_cores=list(range(args.num_workers))
+            )
+        
+
+        for layers in args.num_layers:
+            
+            if hetero:
+                num_neighbors = [args.hetero_num_neighbors] * layers
+                # batch-wise inference
                 subgraph_loader = NeighborLoader(
                     data,
-                    num_neighbors=[-1],  # layer-wise inference
+                    num_neighbors=num_neighbors,
                     input_nodes=mask,
                     batch_size=args.eval_batch_sizes[0],
                     shuffle=False,
@@ -50,64 +62,45 @@ def run(args: argparse.ArgumentParser) -> None:
                     use_cpu_worker_affinity = (True if args.cpu_affinity == 1 else False),
                     cpu_worker_affinity_cores=list(range(args.num_workers))
                 )
-            
-
-            for layers in args.num_layers:
-                
-                if hetero:
-                    num_neighbors = [args.hetero_num_neighbors] * layers
-                    # batch-wise inference
-                    subgraph_loader = NeighborLoader(
-                        data,
-                        num_neighbors=num_neighbors,
-                        input_nodes=mask,
-                        batch_size=args.eval_batch_sizes[0],
-                        shuffle=False,
-                        num_workers=args.num_workers,
-                        use_cpu_worker_affinity = (True if args.cpu_affinity == 1 else False),
-                        cpu_worker_affinity_cores=list(range(args.num_workers))
-                    )
+            if not hetero:
+                num_neighbors = [-1] * layers
 
 
-                for hidden_channels in args.num_hidden_channels:
-                    print('----------------------------------------------')
-                    print(f'Batch size={args.eval_batch_sizes[0]}, '
-                        f'Layers amount={layers}, '
-                        f'Num_neighbors={num_neighbors}, '
-                        f'Hidden features size={hidden_channels}, '
-                        f'Sparse tensor={args.use_sparse_tensor}')
-                    params = {
-                        'inputs_channels': inputs_channels,
-                        'hidden_channels': hidden_channels,
-                        'output_channels': num_classes,
-                        'num_heads': args.num_heads,
-                        'num_layers': layers,
-                    }
+            for hidden_channels in args.num_hidden_channels:
+                print('----------------------------------------------')
+                print(f'Batch size={args.eval_batch_sizes[0]}, '
+                    f'Layers amount={layers}, '
+                    f'Num_neighbors={num_neighbors}, '
+                    f'Hidden features size={hidden_channels}, '
+                    f'Sparse tensor={args.use_sparse_tensor}')
+                params = {
+                    'inputs_channels': inputs_channels,
+                    'hidden_channels': hidden_channels,
+                    'output_channels': num_classes,
+                    'num_heads': args.num_heads,
+                    'num_layers': layers,
+                }
 
-                    model = get_model(
-                        model_name, params,
-                        metadata=data.metadata() if hetero else None)
-                    model = model.to(device)
-                    model.eval()
+                model = get_model(
+                    model_name, params,
+                    metadata=data.metadata() if hetero else None)
+                model = model.to(device)
+                model.eval()
 
-                    with amp:
-                        for _ in range(1):
-                            try:
-                                model.inference(subgraph_loader, device,
-                                                progress_bar=True)
-                            except RuntimeError:
-                                raise MemOverflow
-                            
-                        with timeit():
-                            try:
-                                model.inference(subgraph_loader, device,
-                                                progress_bar=True)
-                            except RuntimeError:
-                                raise MemOverflow
-        except MemOverflow:
-            print('RuntimeError: received 0 items of ancdata')
-            print('Skip the rest of the range of nr_workers - results may be invalid.')
-            continue
+                with amp:
+                    for _ in range(args.warmup):
+                        try:
+                            model.inference(subgraph_loader, device,
+                                            progress_bar=True)
+                        except RuntimeError:
+                            pass
+                        
+                    with timeit():
+                        try:
+                            model.inference(subgraph_loader, device,
+                                            progress_bar=True)
+                        except RuntimeError:
+                            pass
 
 
 if __name__ == '__main__':

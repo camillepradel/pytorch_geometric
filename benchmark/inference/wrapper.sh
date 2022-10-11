@@ -1,11 +1,11 @@
 #!/bin/sh
 
 # CPU SPECS - PHYSICAL CORES ONLY
-CORES=$(lscpu | grep "Core(s)" | cut -f2 -d":")
-SOCKETS=2
+CORES=$(lscpu | grep 'Core(s)' | cut -f2 -d':')
+SOCKETS=$(lscpu | grep 'Socket(s)' | cut -f2 -d':')
 TOTAL_CORES=$((SOCKETS * CORES))
 echo "TOTAL_CORES:" $TOTAL_CORES
-echo "PYTHON:" $python
+mkdir -p logs
 
 # loop variables
 declare -a HT=(0 1)
@@ -37,22 +37,22 @@ for nr_workers in ${NUM_WORKERS[@]}; do
                     continue
                 fi
                 echo "AFFINITY:" $aff
-                if [ $aff = 1 ]; then
-                    lower=$nr_workers-1
-                    upper=$TOTAL_CORES-1
+                    lower=$nr_workers
+                    upper=$((TOTAL_CORES - 1))
                     export OMP_SCHEDULE=STATIC
                     export OMP_PROC_BIND=CLOSE
-                    export GOMP_CPU_AFFINITY="${lower}-${upper}"
+                    export GOMP_CPU_AFFINITY="$(echo $lower-$upper)"
                     echo "GOMP_CPU_AFFINITY: " $(echo $GOMP_CPU_AFFINITY)
                     
                 fi
 
                 OMP_NUM_THREADS=$((TOTAL_CORES - nr_workers))
-                if [OMP_NUM_THREADS > 64]; then
-                    export NUMEXPR_MAX_THREADS=$OMP_NUM_THREADS
+                if [ OMP_NUM_THREADS > 64 ]; then
+                    export NUMEXPR_MAX_THREADS=$TOTAL_CORES
                 fi
                 export OMP_NUM_THREADS=$OMP_NUM_THREADS
-                log="${model}_HT${ht}A${aff}W${nr_workers}.log"
+                
+                log="logs/${model}_W${nr_workers}HT${ht}A${aff}.log"
 
                 echo "OMP_NUM_THREADS: " $(echo $OMP_NUM_THREADS)
                 echo "NR_WORKERS: " $nr_workers

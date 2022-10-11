@@ -2,36 +2,34 @@ import pandas as pd
 import os
 import plotly.express as px
 import numpy as np
+from os import listdir
 
+SUPPORTED_SETS = {
+    'rgcn':'ogbn-mag',
+    'gat':'Reddit',
+    'gcn':'Reddit'
+}
 
 def run(platform) -> None:
     
-    file = f"/home/jpietrak/Code/projects/results_{platform}.log"
+    logs = "pytorch_geometric/benchmark/inference/logs"
 
     results = []
-    keys = ["MODEL", "DATASET", "HYPERTHREADING", "AFFINITY", "GOMP", "NR_WORKERS", "OMP_NUM_THREADS", "Time"]
+    keys = ["MODEL", "DATASET", "HYPERTHREADING", "AFFINITY", "NR_WORKERS", "OMP_NUM_THREADS", "Time"]
     test_result = [None]*len(keys)
+    for file in listdir(logs):
+        
+        with open(file, 'r', encoding='utf-8') as f:
+            
+            lines = f.read().splitlines() 
+            for line in lines:
+                if "Evaluation" in line:
+                    model = line.split(' ')[-1][:-1].strip()
+                    dataset = SUPPORTED_SETS.get(model, None)
+                if "Time" in line:
+                    test_result[-1] = line.split(':')[1].strip()
+                    results.append(test_result)
 
-    with open(file, 'r', encoding='utf-8') as f:
-        lines = f.read().splitlines() 
-        for line in lines:
-            
-            if 'Dataset' in line:
-                dataset = line.split(':')[1].strip()
-            elif "Evaluation" in line:
-                model = line.split(' ')[-1][:-1].strip()
-            
-            for i, key in enumerate(keys):
-                if key in line:
-                    test_result[i] = line.split(':')[1].strip()
-                    if key == "Time":
-                        test_result[i] = test_result[i][:-1]
-                        test_result[0] = model
-                        test_result[1] = dataset    
-                        results.append(test_result)
-                        test_result = [None]*len(keys)
-    
-    
     table = pd.DataFrame(results, columns=keys)
     path = f"{os.path.split(file)[0]}/summary_{platform}.csv"
     table.to_csv(path, na_rep='FAILED', index_label="TEST_ID", header=True)
