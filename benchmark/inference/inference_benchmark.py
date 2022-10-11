@@ -8,21 +8,10 @@ from torch_geometric.profile import rename_profile_file, timeit, torch_profile
 import os
 
 supported_sets = {
-    'ogbn-mag': ['rgat', 'rgcn'],
-    'ogbn-products': ['edge_cnn', 'gat', 'gcn', 'pna', 'sage'],
-    'Reddit': ['edge_cnn', 'gat', 'gcn', 'pna', 'sage'],
+    'rgcn':'ogbn-mag',
+    'gat':'Reddit',
+    'gcn':'Reddit'
 }
-
-SOCKETS = 2
-CORES = 56
-TOTAL_CORES = SOCKETS*CORES
-MODELS = {'gcn':'Reddit', 'gat':'Reddit', 'rgcn':'ogbn-mag'}
-HT = ['off', 'on']
-WARMUP = 1
-BATCH_SIZE = 512
-NUM_HIDDEN_CHANNELS = [64]
-NUM_LAYERS = [2]
-HETERO_NEIGHBORS = [5, 5]
 
 class MemOverflow(Exception):
     pass
@@ -32,147 +21,93 @@ def run(args: argparse.ArgumentParser) -> None:
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     print('BENCHMARK STARTS')
-    for hyperthreading in HT:
-        print(f'Setting hyperthreading: {hyperthreading.upper()}')
-        ht_cmd = f'echo {hyperthreading} > /sys/devices/system/cpu/smt/control'
-        os.system(ht_cmd)
-        ht_test = os.popen("cat /sys/devices/system/cpu/smt/active")
-        #assert int(ht_test) == 0 if HT == 'off' else int(ht_test) == 1, "Hyperthreading setting didn't change!"
-        for model_name, dataset_name in MODELS.items():
-            print(f'Evaluation bench for {model_name}:')
-            assert dataset_name in supported_sets.keys(
-            ), f"Dataset {dataset_name} isn't supported."
-            print(f'Dataset: {dataset_name}')
-            dataset, num_classes = get_dataset(dataset_name, args.root,
-                                            args.use_sparse_tensor, args.bf16)
-            data = dataset.to(device)
-            hetero = True if dataset_name == 'ogbn-mag' else False
-            mask = ('paper', None) if dataset_name == 'ogbn-mag' else None
-            degree = None
+   
+    for model_name in args.models:
+        print(f'Evaluation bench for {model_name}:')
+        dataset_name = supported_sets.get(model_name, None)
+        dataset, num_classes = get_dataset(dataset_name, args.root,
+                                        args.use_sparse_tensor, args.bf16)
+        data = dataset.to(device)
+        hetero = True if dataset_name == 'ogbn-mag' else False
+        mask = ('paper', None) if dataset_name == 'ogbn-mag' else None
 
-            inputs_channels = data[
-                'paper'].num_features if dataset_name == 'ogbn-mag' \
-                else dataset.num_features
-            if model_name not in supported_sets[dataset_name]:
-                print(f'Configuration of {dataset_name} + {model_name} '
-                        f'not supported. Skipping.')
-                continue
-            try:
-                for num_workers in [0,1,2,3,4,8,12,16,20,24,30,30,40,56]:
-                    for cpu_affinity in [True, False]:
-                        if num_workers == 0 and cpu_affinity:
-                            continue
-                        cpu_aff_cores= list(range(num_workers))
-                        
-                        cmds = []
-                        cmds.append(f"echo HYPERTHREADING: {hyperthreading}")
-                        cmds.append(f"echo NR_WORKERS: {num_workers}")
-                        omp_num_threads=TOTAL_CORES-num_workers
-                        os.environ["OMP_NUM_THREADS"] = str(omp_num_threads)
-                        cmds.append(r"echo OMP_NUM_THREADS: $OMP_NUM_THREADS")
-                        cmds.append(f"echo CPU AFFINITY: {cpu_affinity}")
+        inputs_channels = data[
+            'paper'].num_features if dataset_name == 'ogbn-mag' \
+            else dataset.num_features
 
-                        if cpu_affinity and cpu_aff_cores:
-                            if HT:
-                                gomp_cpu_affinity=list(range(cpu_aff_cores[-1]+1, CORES)) + list(range(TOTAL_CORES+1,TOTAL_CORES+CORES+1))
-                            else:
-                                gomp_cpu_affinity=list(range(cpu_aff_cores[-1]+1, TOTAL_CORES))
-                            gomp_cpu_affinity = ''.join([f"{i}, " for i in gomp_cpu_affinity])
-                            gomp_cpu_affinity = gomp_cpu_affinity[:-2]
-                            os.environ["GOMP_CPU_AFFINITY"] = gomp_cpu_affinity
-                            cmds.append(r"echo GOMP_CPU_AFFINITY: $GOMP_CPU_AFFINITY")
+        try:
+            if torch.cuda.is_available():
+                amp = torch.cuda.amp.autocast(enabled=False)
+            else:
+                amp = torch.cpu.amp.autocast(enabled=args.bf16)
+            if not hetero:
+                subgraph_loader = NeighborLoader(
+                    data,
+                    num_neighbors=[-1],  # layer-wise inference
+                    input_nodes=mask,
+                    batch_size=args.eval_batch_sizes[0],
+                    shuffle=False,
+                    num_workers=args.num_workers[0],
+                    use_cpu_worker_affinity = (True if args.cpu_affinity == 0 else False),
+                    cpu_worker_affinity_cores=list(range(args.num_workers[0]))
+                )
+            
 
-                        [os.system(cmd) for cmd in cmds]
-
-                        if torch.cuda.is_available():
-                            amp = torch.cuda.amp.autocast(enabled=False)
-                        else:
-                            amp = torch.cpu.amp.autocast(enabled=args.bf16)
-                        if not hetero:
-                            subgraph_loader = NeighborLoader(
-                                data,
-                                num_neighbors=[-1],  # layer-wise inference
-                                input_nodes=mask,
-                                batch_size=BATCH_SIZE,
-                                shuffle=False,
-                                num_workers=num_workers,
-                                use_cpu_worker_affinity=cpu_affinity,
-                                cpu_worker_affinity_cores=cpu_aff_cores
-                            )
-                        
-
-                        for layers in NUM_LAYERS:
-                            # limit number of neighs
-                            if hetero:
-                                # batch-wise inference
-                                subgraph_loader = NeighborLoader(
-                                    data,
-                                    num_neighbors=HETERO_NEIGHBORS,
-                                    input_nodes=mask,
-                                    batch_size=BATCH_SIZE,
-                                    shuffle=False,
-                                    num_workers=num_workers,
-                                )
+            for layers in args.num_layers:
+                num_neighbors = [args.hetero_num_neighbors] * layers
+                if hetero:
+                    # batch-wise inference
+                    subgraph_loader = NeighborLoader(
+                        data,
+                        num_neighbors=num_neighbors,
+                        input_nodes=mask,
+                        batch_size=args.eval_batch_sizes[0],
+                        shuffle=False,
+                        num_workers=args.num_workers[0],
+                        use_cpu_worker_affinity = (True if args.cpu_affinity == 0 else False),
+                        cpu_worker_affinity_cores=list(range(args.num_workers[0]))
+                    )
 
 
-                            for hidden_channels in NUM_HIDDEN_CHANNELS:
-                                print('----------------------------------------------')
-                                print(f'Batch size={BATCH_SIZE}, '
-                                    f'Layers amount={layers}, '
-                                    f'Num_neighbors={HETERO_NEIGHBORS if hetero else [-1]}, '
-                                    f'Hidden features size={hidden_channels}, '
-                                    f'Sparse tensor={args.use_sparse_tensor}')
-                                params = {
-                                    'inputs_channels': inputs_channels,
-                                    'hidden_channels': hidden_channels,
-                                    'output_channels': num_classes,
-                                    'num_heads': args.num_heads,
-                                    'num_layers': layers,
-                                }
+                for hidden_channels in args.num_hidden_channels:
+                    print('----------------------------------------------')
+                    print(f'Batch size={args.eval_batch_sizes[0]}, '
+                        f'Layers amount={layers}, '
+                        f'Num_neighbors={num_neighbors}, '
+                        f'Hidden features size={hidden_channels}, '
+                        f'Sparse tensor={args.use_sparse_tensor}')
+                    params = {
+                        'inputs_channels': inputs_channels,
+                        'hidden_channels': hidden_channels,
+                        'output_channels': num_classes,
+                        'num_heads': args.num_heads,
+                        'num_layers': layers,
+                    }
 
-                                if model_name == 'pna':
-                                    if degree is None:
-                                        degree = PNAConv.get_degree_histogram(
-                                            subgraph_loader)
-                                        print(f'Calculated degree for {dataset_name}.')
-                                    params['degree'] = degree
+                    model = get_model(
+                        model_name, params,
+                        metadata=data.metadata() if hetero else None)
+                    model = model.to(device)
+                    model.eval()
 
-                                model = get_model(
-                                    model_name, params,
-                                    metadata=data.metadata() if hetero else None)
-                                model = model.to(device)
-                                model.eval()
-
-                                with amp:
-                                    for _ in range(1):
-                                        try:
-                                            model.inference(subgraph_loader, device,
-                                                            progress_bar=True)
-                                        except RuntimeError:
-                                            print('RuntimeError: received 0 items of ancdata')
-                                            print('Skip the rest of the range of nr_workers - results may be invalid.')
-                                            raise MemOverflow
-                                        
-                                    with timeit():
-                                        try:
-                                            model.inference(subgraph_loader, device,
-                                                            progress_bar=True)
-                                        except RuntimeError:
-                                            print('RuntimeError: received 0 items of ancdata')
-                                            print('Skip the rest of the range of nr_workers - results may be invalid.')
-                                            raise MemOverflow
-                                        
-                                    if args.profile:
-                                        with torch_profile():
-                                            model.inference(subgraph_loader, device,
-                                                            progress_bar=True)
-                                        rename_profile_file(model_name, dataset_name,
-                                                            str(batch_size),
-                                                            str(layers),
-                                                            str(hidden_channels),
-                                                            str(num_neighbors))
-            except MemOverflow:
-                continue
+                    with amp:
+                        for _ in range(1):
+                            try:
+                                model.inference(subgraph_loader, device,
+                                                progress_bar=True)
+                            except RuntimeError:
+                                raise MemOverflow
+                            
+                        with timeit():
+                            try:
+                                model.inference(subgraph_loader, device,
+                                                progress_bar=True)
+                            except RuntimeError:
+                                raise MemOverflow
+        except MemOverflow:
+            print('RuntimeError: received 0 items of ancdata')
+            print('Skip the rest of the range of nr_workers - results may be invalid.')
+            continue
 
 
 if __name__ == '__main__':
