@@ -1,8 +1,8 @@
 #!/bin/sh
 # CPU SPECS - PHYSICAL CORES ONLY
-CORSOCKETS=2
+SOCKETS=2
 CORES=56
-TOTAL_CORES=SOCKETS*CORES
+TOTAL_CORES=$SOCKETS*$CORES
 
 # loop variables
 HT=(0 1)
@@ -42,7 +42,7 @@ for nr_workers in ${NUM_WORKERS[@]}; do
                     export GOMP_CPU_AFFINITY="${lower}-${upper}"
                     echo "GOMP_CPU_AFFINITY: " $GOMP_CPU_AFFINITY
                 fi
-                omp=${TOTAL_CORES}-${nr_workers}
+                omp=$TOTAL_CORES-$nr_workers
                 export OMP_NUM_THREADS=$omp
                 log="${model}_HT${ht}A${aff}W${nr_workers}.log"
 
