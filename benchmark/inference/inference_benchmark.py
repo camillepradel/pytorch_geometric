@@ -138,7 +138,7 @@ if __name__ == '__main__':
     argparser.add_argument('--warmup', default=1, type=int)
     argparser.add_argument('--profile', action='store_true')
     argparser.add_argument('--bf16', action='store_true')
-
+    argparser.add_argument('--cpu_affinity', default=0, type=int)
     args = argparser.parse_args()
 
     run(args)
