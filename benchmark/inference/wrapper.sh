@@ -42,8 +42,8 @@ for nr_workers in ${NUM_WORKERS[@]}; do
                     export GOMP_CPU_AFFINITY="${lower}-${upper}"
                     echo "GOMP_CPU_AFFINITY: " $GOMP_CPU_AFFINITY
                 fi
-
-                export OMP_NUM_THREADS=${TOTAL_CORES}-${nr_workers}
+                omp=${TOTAL_CORES}-${nr_workers}
+                export OMP_NUM_THREADS=$omp
                 log="${model}_HT${ht}A${aff}W${nr_workers}.log"
 
                 echo "OMP_NUM_THREADS: " $OMP_NUM_THREADS
@@ -51,8 +51,7 @@ for nr_workers in ${NUM_WORKERS[@]}; do
                 echo "MODEL: " $model  
                 echo "LOG: " $log
                 
-                conda init bash && conda activate pyg && \
-                python inference_benchmark.py --models $model --num-workers $nr_workers --eval-batch-sizes $BATCH_SIZE --num-layers $NUM_LAYERS --num-hidden-channels $NUM_HIDDEN_CHANNELS --hetero-num-neighbors $HETERO_NEIGHBORS --warmup $WARMUP --cpu_affinity $aff --use-sparse-tensor | tee $log
+                /home/sdp/miniconda3/envs/pyg/bin/python inference_benchmark.py --models $model --num-workers $nr_workers --eval-batch-sizes $BATCH_SIZE --num-layers $NUM_LAYERS --num-hidden-channels $NUM_HIDDEN_CHANNELS --hetero-num-neighbors $HETERO_NEIGHBORS --warmup $WARMUP --cpu_affinity $aff --use-sparse-tensor | tee $log
 
             done
         done
