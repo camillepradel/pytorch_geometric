@@ -1,6 +1,6 @@
 #!/bin/sh
 # CPU SPECS - PHYSICAL CORES ONLY
-SOCKETS=2
+CORSOCKETS=2
 CORES=56
 TOTAL_CORES=SOCKETS*CORES
 
@@ -40,17 +40,18 @@ for nr_workers in ${NUM_WORKERS[@]}; do
                     export OMP_SCHEDULE=STATIC
                     export OMP_PROC_BIND=CLOSE
                     export GOMP_CPU_AFFINITY="${lower}-${upper}"
-                    echo "GOMP: " $GOMP_CPU_AFFINITY
+                    echo "GOMP_CPU_AFFINITY: " $GOMP_CPU_AFFINITY
                 fi
 
-                export OMP_NUM_THREADS=$TOTAL_CORES-$nr_workers
+                export OMP_NUM_THREADS=${TOTAL_CORES}-${nr_workers}
                 log="${model}_HT${ht}A${aff}W${nr_workers}.log"
 
                 echo "OMP_NUM_THREADS: " $OMP_NUM_THREADS
                 echo "NR_WORKERS: " $model
                 echo "MODEL: " $model  
                 echo "LOG: " $log
-
+                
+                conda init bash
                 conda activate pyg
                 python inference_benchmark.py --models $model --num-workers $nr_workers --eval-batch-sizes $BATCH_SIZE --num-layers $NUM_LAYERS --num-hidden-channels $NUM_HIDDEN_CHANNELS --hetero-num-neighbors $HETERO_NEIGHBORS --warmup $WARMUP --cpu_affinity $aff --use-sparse-tensor | tee $log
 
