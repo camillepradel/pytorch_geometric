@@ -2,13 +2,13 @@
 # CPU SPECS - PHYSICAL CORES ONLY
 SOCKETS=2
 CORES=56
-TOTAL_CORES=$SOCKETS*$CORES
+TOTAL_CORES=$((SOCKETS * CORES))
 
 # loop variables
-HT=(0 1)
-AFFINITY=(0 1)
-MODELS=('gcn' 'gat' 'rgcn')
-NUM_WORKERS=(0 1 2 3 4 8 12 16 20 24)
+declare -a HT=(0 1)
+declare -a AFFINITY=(0 1)
+declare -a MODELS=('gcn' 'gat' 'rgcn')
+declare -a NUM_WORKERS=(0 1 2 3 4 8 12 16 20 24)
 
 # inputs for the script
 BATCH_SIZE=256
@@ -42,12 +42,11 @@ for nr_workers in ${NUM_WORKERS[@]}; do
                     export GOMP_CPU_AFFINITY="${lower}-${upper}"
                     echo "GOMP_CPU_AFFINITY: " $GOMP_CPU_AFFINITY
                 fi
-                omp=$TOTAL_CORES-$nr_workers
-                export OMP_NUM_THREADS=$omp
+                export OMP_NUM_THREADS=$((TOTAL_CORES - nr_workers))
                 log="${model}_HT${ht}A${aff}W${nr_workers}.log"
 
                 echo "OMP_NUM_THREADS: " $OMP_NUM_THREADS
-                echo "NR_WORKERS: " $model
+                echo "NR_WORKERS: " $nr_workers
                 echo "MODEL: " $model  
                 echo "LOG: " $log
                 
