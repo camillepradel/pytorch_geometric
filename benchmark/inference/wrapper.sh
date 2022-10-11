@@ -40,11 +40,11 @@ for nr_workers in ${NUM_WORKERS[@]}; do
                 if [ $aff = 1 ]; then
                     lower=$nr_workers-1
                     upper=$TOTAL_CORES-1
-
+                    echo "GOMP_CPU_AFFINITY: " $GOMP_CPU_AFFINITY
                     export OMP_SCHEDULE=STATIC
                     export OMP_PROC_BIND=CLOSE
                     export GOMP_CPU_AFFINITY="${lower}-${upper}"
-                    echo "GOMP_CPU_AFFINITY: " $GOMP_CPU_AFFINITY
+                    
                 fi
                 export OMP_NUM_THREADS=$((TOTAL_CORES - nr_workers))
                 log="${model}_HT${ht}A${aff}W${nr_workers}.log"
