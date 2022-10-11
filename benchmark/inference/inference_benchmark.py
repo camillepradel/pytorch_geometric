@@ -3,9 +3,7 @@ import torch
 from utils import get_dataset, get_model
 
 from torch_geometric.loader import NeighborLoader
-from torch_geometric.nn import PNAConv
-from torch_geometric.profile import rename_profile_file, timeit, torch_profile
-import os
+from torch_geometric.profile import timeit
 
 supported_sets = {
     'rgcn':'ogbn-mag',
@@ -47,9 +45,9 @@ def run(args: argparse.ArgumentParser) -> None:
                     input_nodes=mask,
                     batch_size=args.eval_batch_sizes[0],
                     shuffle=False,
-                    num_workers=args.num_workers[0],
-                    use_cpu_worker_affinity = (True if args.cpu_affinity == 0 else False),
-                    cpu_worker_affinity_cores=list(range(args.num_workers[0]))
+                    num_workers=args.num_workers,
+                    use_cpu_worker_affinity = (True if args.cpu_affinity == 1 else False),
+                    cpu_worker_affinity_cores=list(range(args.num_workers))
                 )
             
 
@@ -63,9 +61,9 @@ def run(args: argparse.ArgumentParser) -> None:
                         input_nodes=mask,
                         batch_size=args.eval_batch_sizes[0],
                         shuffle=False,
-                        num_workers=args.num_workers[0],
-                        use_cpu_worker_affinity = (True if args.cpu_affinity == 0 else False),
-                        cpu_worker_affinity_cores=list(range(args.num_workers[0]))
+                        num_workers=args.num_workers,
+                        use_cpu_worker_affinity = (True if args.cpu_affinity == 1 else False),
+                        cpu_worker_affinity_cores=list(range(args.num_workers))
                     )
 
 
