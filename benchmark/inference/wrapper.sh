@@ -63,9 +63,8 @@ for nr_workers in ${NUM_WORKERS[@]}; do
                 python=$(which python)
 
                 $python -u inference_benchmark.py --models $model --num-workers $nr_workers --eval-batch-sizes $BATCH_SIZE --num-layers $NUM_LAYERS --num-hidden-channels $NUM_HIDDEN_CHANNELS --hetero-num-neighbors $HETERO_NEIGHBORS --warmup $WARMUP --cpu_affinity $aff --use-sparse-tensor | tee $log
-
-                done
             done
         done
+    done
 done
 
