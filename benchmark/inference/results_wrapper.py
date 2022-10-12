@@ -15,7 +15,7 @@ def run(platform) -> None:
     
     results = []
     keys = ["MODEL", "DATASET", "HYPERTHREADING", "AFFINITY", "NR_WORKERS", "TIME(s)"]
-    logdir = 'pytorch_geometric/benchmark/inference/logs'
+    logdir = f'pytorch_geometric/benchmark/inference/logs/{platform}'
     for file in listdir(logdir):
         test_result = [None]*len(keys)
         if ".log" in file:
@@ -31,6 +31,7 @@ def run(platform) -> None:
             results.append(test_result)
             
     table = pd.DataFrame(results, columns=keys)
+    table.sort_values(by=['MODEL','NR_WORKERS'], inplace=True)
     path = f"{os.path.split(filedir)[0]}/summary_{platform}.csv"
     table.to_csv(path, na_rep='FAILED', index_label="TEST_ID", header=True)
     
@@ -72,6 +73,6 @@ def model_mask(data, model):
     
 if __name__ == '__main__':
     
-    platform = "SPR"
+    platform = "ICX"
     summary = run(platform)
     bar(summary, platform)
