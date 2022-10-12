@@ -35,15 +35,13 @@ for nr_workers in ${NUM_WORKERS[@]}; do
                 if [ $aff = 1 ] && [ $nr_workers = 0 ]; then
                     continue
                 fi
-                echo "AFFINITY:" $aff
+                
                 if [ $aff = 1 ]; then
                     lower=$nr_workers
                     upper=$((TOTAL_CORES - 1))
                     #export OMP_SCHEDULE=STATIC
                     #export OMP_PROC_BIND=CLOSE
                     export GOMP_CPU_AFFINITY="$(echo $lower-$upper)"
-                    echo "GOMP_CPU_AFFINITY: " $(echo $GOMP_CPU_AFFINITY)
-                    
                 else 
                     unset GOMP_CPU_AFFINITY
                 fi
@@ -55,7 +53,9 @@ for nr_workers in ${NUM_WORKERS[@]}; do
                 export OMP_NUM_THREADS=$OMP_NUM_THREADS
                 
                 log="logs/${model}_W${nr_workers}_HT${ht}_A${aff}.log"
-
+                
+                echo "AFFINITY:" $aff
+                echo "GOMP_CPU_AFFINITY: " $(echo $GOMP_CPU_AFFINITY)
                 echo "OMP_NUM_THREADS: " $(echo $OMP_NUM_THREADS)
                 echo "NR_WORKERS: " $nr_workers
                 echo "MODEL: " $model  
