@@ -31,10 +31,10 @@ def analyse(platform) -> None:
             results.append(test_result)
             
     table = pd.DataFrame(results, columns=keys)
-    table.sort_values(by=['MODEL','NR_WORKERS'], inplace=True)
+    table.sort_values(by=['MODEL','NR_WORKERS','HYPERTHREADING','AFFINITY'], inplace=True)
     table.to_csv(SUMMARY, na_rep='FAILED', index_label="TEST_ID", header=True)
 
-def bar(platform):
+def plot(platform):
     plotdir=f'{CWD}/logs/{platform}/plots'
     os.makedirs(plotdir, exist_ok=True)
     data = pd.read_csv(SUMMARY)
@@ -49,14 +49,27 @@ def bar(platform):
         cfg += "batch_size=512, num_layers=2, hidden_channels=16, warmup=0"
         title = title + cfg
         model_data = model_mask(data, model)
-        model_data.sort_values(by="setup", inplace=True)
         fig = px.line(model_data, x = "NR_WORKERS", y = "TIME(s)", color = 'setup', 
                         height = 500, width = 1000,
                         labels={"Time":"TIME(s)",
                                 "NR_WORKERS":"NR_WORKERS",
-                                "setup":''},
+                                "setup":'Hyperthreading, CPU Affinity'},
                         title = title).update_traces(mode="lines+markers")
+        
         fig.update_xaxes(type = 'category', categoryarray=np.unique(model_data["NR_WORKERS"]))
+        avg_time_aff = model_data[(model_data['setup'] == 'NO_HT+AFF') | (model_data['setup'] == 'HT+AFF')].mean()
+        avg_time_aff = round(avg_time_aff['TIME(s)'],2)
+        avg_time_noaff = model_data[(model_data['setup'] == 'NO_HT+NO_AFF') | (model_data['setup'] == 'HT+NO_AFF')].mean()
+        avg_time_noaff = round(avg_time_noaff['TIME(s)'],2)
+        fig.add_annotation(text=f'Avg. time NO_AFF: {avg_time_noaff}s<br>Avg. time AFF: {avg_time_aff}s', 
+                    align='left',
+                    showarrow=False,
+                    xref='paper',
+                    yref='paper',
+                    x=1.25,
+                    y=0.5,
+                    bordercolor='white',
+                    borderwidth=1)
         fig.write_image(f"{plotdir}/{platform}-{model}.png")
          
 def model_mask(data, model):
@@ -72,11 +85,11 @@ def model_mask(data, model):
     
 if __name__ == '__main__':
     
-    platform = "ICX"
+    platform = "SPR"
     
     CWD='pytorch_geometric/benchmark/inference'
     LOGS=f"{CWD}/logs/{platform}/logs"
     SUMMARY=f"{CWD}/logs/{platform}/summary_{platform}.csv"
         
     analyse(platform)
-    bar(platform)
+    plot(platform)

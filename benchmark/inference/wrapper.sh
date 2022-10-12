@@ -11,7 +11,7 @@ mkdir -p logs
 declare -a HT=(0 1)
 declare -a AFFINITY=(0 1)
 declare -a MODELS=('gcn' 'gat' 'rgcn')
-declare -a NUM_WORKERS=(0 1 2 3 4 8 12 16 20)
+declare -a NUM_WORKERS=(0 1 2 3) # 4 8 12 16 20
 
 # inputs for the script
 BATCH_SIZE=512
@@ -23,15 +23,15 @@ WARMUP=0
 # for each model run benchmark in 4 configs: NO_HT+NO_AFF, NO_HT+AFF, HT+NO_AFF, HT+AFF
 for nr_workers in ${NUM_WORKERS[@]}; do
     # do the math
-    for model in ${MODELS[@]}; do
-        for ht in ${HT[@]}; do
-            if [ $ht = 1 ]; then
-                echo on > /sys/devices/system/cpu/smt/control
-            else
-                echo off > /sys/devices/system/cpu/smt/control
-            fi
-            echo "HYPERTHREADING:" $(cat /sys/devices/system/cpu/smt/active)
-            for aff in ${AFFINITY[@]}; do
+    for ht in ${HT[@]}; do
+        if [ $ht = 1 ]; then
+            echo on > /sys/devices/system/cpu/smt/control
+        else
+            echo off > /sys/devices/system/cpu/smt/control
+        fi
+        echo "HYPERTHREADING:" $(cat /sys/devices/system/cpu/smt/active)
+        for aff in ${AFFINITY[@]}; do
+            for model in ${MODELS[@]}; do
                 if [ $aff = 1 ] && [ $nr_workers = 0 ]; then
                     continue
                 fi
@@ -39,11 +39,13 @@ for nr_workers in ${NUM_WORKERS[@]}; do
                 if [ $aff = 1 ]; then
                     lower=$nr_workers
                     upper=$((TOTAL_CORES - 1))
-                    export OMP_SCHEDULE=STATIC
-                    export OMP_PROC_BIND=CLOSE
+                    #export OMP_SCHEDULE=STATIC
+                    #export OMP_PROC_BIND=CLOSE
                     export GOMP_CPU_AFFINITY="$(echo $lower-$upper)"
                     echo "GOMP_CPU_AFFINITY: " $(echo $GOMP_CPU_AFFINITY)
                     
+                else 
+                    unset GOMP_CPU_AFFINITY
                 fi
 
                 OMP_NUM_THREADS=$((TOTAL_CORES - nr_workers))
@@ -63,8 +65,8 @@ for nr_workers in ${NUM_WORKERS[@]}; do
 
                 $python -u inference_benchmark.py --models $model --num-workers $nr_workers --eval-batch-sizes $BATCH_SIZE --num-layers $NUM_LAYERS --num-hidden-channels $NUM_HIDDEN_CHANNELS --hetero-num-neighbors $HETERO_NEIGHBORS --warmup $WARMUP --cpu_affinity $aff --use-sparse-tensor | tee $log
 
+                done
             done
         done
-    done
 done
 
