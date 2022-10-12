@@ -15,10 +15,10 @@ declare -a NUM_WORKERS=(0 1 2 3) # 4 8 12 16 20
 
 # inputs for the script
 BATCH_SIZE=512
-NUM_HIDDEN_CHANNELS=16
-NUM_LAYERS=2
-HETERO_NEIGHBORS=3
-WARMUP=0
+NUM_HIDDEN_CHANNELS=256
+NUM_LAYERS=3
+HETERO_NEIGHBORS=5
+WARMUP=1
 
 # for each model run benchmark in 4 configs: NO_HT+NO_AFF, NO_HT+AFF, HT+NO_AFF, HT+AFF
 for nr_workers in ${NUM_WORKERS[@]}; do
@@ -34,7 +34,6 @@ for nr_workers in ${NUM_WORKERS[@]}; do
                 if [ $aff = 1 ] && [ $nr_workers = 0 ]; then
                     continue
                 fi
-                
                 if [ $aff = 1 ]; then
                     lower=$nr_workers
                     upper=$((TOTAL_CORES - 1))

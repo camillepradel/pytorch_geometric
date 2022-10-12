@@ -11,7 +11,6 @@ SUPPORTED_SETS = {
     'gcn':'Reddit'
 }
 
-
 def analyse(platform) -> None:
     
     results = []
@@ -35,15 +34,18 @@ def analyse(platform) -> None:
     table.to_csv(SUMMARY, na_rep='FAILED', index_label="TEST_ID", header=True)
 
 def plot(platform):
-    plotdir=f'{CWD}/logs/{platform}/plots'
-    os.makedirs(plotdir, exist_ok=True)
+    
+    os.makedirs(PLOTS, exist_ok=True)
     data = pd.read_csv(SUMMARY)
     data['setup'] = np.nan 
     models = ['gcn','gat','rgcn']
     datasets = ['Reddit', 'Reddit', 'ogbn-mag']
     for i, model in enumerate(models):
         dataset = datasets[i]
-        title = "2xSPR + 256GB RAM" if platform == 'SPR' else "2xICX + 512GB RAM"
+        machines = {'SPR':"2xSPR + 256GB RAM",
+                    'ICX':"2xICX + 512GB RAM",
+                    'CSX':"2xCSX + 256GB RAM"}
+        title = machines.get(platform, None)
         title += f"<br>{model}+{dataset}"
         cfg = "<br>num_neighbors=[-1], " if model!='rgcn' else "<br>num_neighbors=[3,3], "
         cfg += "batch_size=512, num_layers=2, hidden_channels=16, warmup=0"
@@ -70,7 +72,7 @@ def plot(platform):
                     y=0.5,
                     bordercolor='white',
                     borderwidth=1)
-        fig.write_image(f"{plotdir}/{platform}-{model}.png")
+        fig.write_image(f"{PLOTS}/{platform}-{model}.png")
          
 def model_mask(data, model):
     
@@ -87,9 +89,10 @@ if __name__ == '__main__':
     
     platform = "SPR"
     
-    CWD='pytorch_geometric/benchmark/inference'
-    LOGS=f"{CWD}/logs/{platform}/logs"
-    SUMMARY=f"{CWD}/logs/{platform}/summary_{platform}.csv"
+    CWD=f'pytorch_geometric/benchmark/inference/logs/redo/{platform}'
+    LOGS=f"{CWD}/logs"
+    SUMMARY=f"{CWD}/summary_{platform}.csv"
+    PLOTS=f'{CWD}/plots'
         
     analyse(platform)
     plot(platform)
