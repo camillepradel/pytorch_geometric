@@ -11,15 +11,15 @@ SUPPORTED_SETS = {
     'gcn':'Reddit'
 }
 
-def run(platform) -> None:
+
+def analyse(platform) -> None:
     
     results = []
     keys = ["MODEL", "DATASET", "HYPERTHREADING", "AFFINITY", "NR_WORKERS", "TIME(s)"]
-    logdir = f'pytorch_geometric/benchmark/inference/logs/{platform}'
-    for file in listdir(logdir):
+    for file in listdir(LOGS):
         test_result = [None]*len(keys)
         if ".log" in file:
-            filedir=f"{logdir}/{file}"
+            filedir=f"{LOGS}/{file}"
             model = file.split('_')[0].strip()
             config = file.split('_')[1][:-4].strip()
             test_result[0] = model
@@ -32,14 +32,12 @@ def run(platform) -> None:
             
     table = pd.DataFrame(results, columns=keys)
     table.sort_values(by=['MODEL','NR_WORKERS'], inplace=True)
-    path = f"{os.path.split(filedir)[0]}/summary_{platform}.csv"
-    table.to_csv(path, na_rep='FAILED', index_label="TEST_ID", header=True)
-    
-    return path
+    table.to_csv(SUMMARY, na_rep='FAILED', index_label="TEST_ID", header=True)
 
-def bar(file, platform):
-    
-    data = pd.read_csv(file)
+def bar(platform):
+    plotdir=f'{CWD}/logs/{platform}/plots'
+    os.makedirs(plotdir, exist_ok=True)
+    data = pd.read_csv(SUMMARY)
     data['setup'] = np.nan 
     models = ['gcn','gat','rgcn']
     datasets = ['Reddit', 'Reddit', 'ogbn-mag']
@@ -51,14 +49,15 @@ def bar(file, platform):
         cfg += "batch_size=512, num_layers=2, hidden_channels=16, warmup=0"
         title = title + cfg
         model_data = model_mask(data, model)
-        fig = px.bar(model_data, x = "NR_WORKERS", y = "TIME(s)", color = 'setup', 
-                        barmode='group', height = 500, width = 1000, 
+        model_data.sort_values(by="setup", inplace=True)
+        fig = px.line(model_data, x = "NR_WORKERS", y = "TIME(s)", color = 'setup', 
+                        height = 500, width = 1000,
                         labels={"Time":"TIME(s)",
                                 "NR_WORKERS":"NR_WORKERS",
                                 "setup":''},
-                        title = title)
+                        title = title).update_traces(mode="lines+markers")
         fig.update_xaxes(type = 'category', categoryarray=np.unique(model_data["NR_WORKERS"]))
-        fig.write_image(f"{os.path.split(file)[0]}/{platform}-{model}.png")
+        fig.write_image(f"{plotdir}/{platform}-{model}.png")
          
 def model_mask(data, model):
     
@@ -74,5 +73,10 @@ def model_mask(data, model):
 if __name__ == '__main__':
     
     platform = "ICX"
-    summary = run(platform)
-    bar(summary, platform)
+    
+    CWD='pytorch_geometric/benchmark/inference'
+    LOGS=f"{CWD}/logs/{platform}/logs"
+    SUMMARY=f"{CWD}/logs/{platform}/summary_{platform}.csv"
+        
+    analyse(platform)
+    bar(platform)
