@@ -51,8 +51,8 @@ for nr_workers in ${NUM_WORKERS[@]}; do
                 fi
                 export OMP_NUM_THREADS=$OMP_NUM_THREADS
                 
-                log="logs/${model}_W${nr_workers}_HT${ht}_A${aff}.log"
-                
+                log="logs/${model}_W${nr_workers}HT${ht}A${aff}.log"
+
                 echo "HYPERTHREADING:" $(cat /sys/devices/system/cpu/smt/active)
                 echo "AFFINITY:" $aff
                 echo "GOMP_CPU_AFFINITY: " $(echo $GOMP_CPU_AFFINITY)
