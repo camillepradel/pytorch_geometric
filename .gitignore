@@ -26,4 +26,4 @@ coverage.xml
 !torch_geometric/data/
 !test/data/
 
-pytorch_geometric/benchmark/inference/logs/*
+benchmark/inference/logs/*
