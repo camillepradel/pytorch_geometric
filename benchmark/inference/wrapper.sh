@@ -11,7 +11,7 @@ mkdir -p logs
 declare -a HT=(0 1)
 declare -a AFFINITY=(0 1)
 declare -a MODELS=('gcn' 'gat' 'rgcn')
-declare -a NUM_WORKERS=(0 1 2 3) # 4 8 12 16 20
+declare -a NUM_WORKERS=(0 1 2 3 4 8 12 16 20)
 
 # inputs for the script
 BATCH_SIZE=512
