@@ -52,7 +52,7 @@ for nr_workers in ${NUM_WORKERS[@]}; do
                 fi
                 export OMP_NUM_THREADS=$OMP_NUM_THREADS
                 
-                log="logs/${model}_W${nr_workers}HT${ht}A${aff}.log"
+                log="logs/${model}_W${nr_workers}_HT${ht}_A${aff}.log"
 
                 echo "OMP_NUM_THREADS: " $(echo $OMP_NUM_THREADS)
                 echo "NR_WORKERS: " $nr_workers
