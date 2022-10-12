@@ -29,7 +29,6 @@ for nr_workers in ${NUM_WORKERS[@]}; do
         else
             echo off > /sys/devices/system/cpu/smt/control
         fi
-        echo "HYPERTHREADING:" $(cat /sys/devices/system/cpu/smt/active)
         for aff in ${AFFINITY[@]}; do
             for model in ${MODELS[@]}; do
                 if [ $aff = 1 ] && [ $nr_workers = 0 ]; then
@@ -54,6 +53,7 @@ for nr_workers in ${NUM_WORKERS[@]}; do
                 
                 log="logs/${model}_W${nr_workers}_HT${ht}_A${aff}.log"
                 
+                echo "HYPERTHREADING:" $(cat /sys/devices/system/cpu/smt/active)
                 echo "AFFINITY:" $aff
                 echo "GOMP_CPU_AFFINITY: " $(echo $GOMP_CPU_AFFINITY)
                 echo "OMP_NUM_THREADS: " $(echo $OMP_NUM_THREADS)
