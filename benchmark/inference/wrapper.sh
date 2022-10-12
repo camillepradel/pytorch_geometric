@@ -18,7 +18,7 @@ BATCH_SIZE=512
 NUM_HIDDEN_CHANNELS=256
 NUM_LAYERS=3
 HETERO_NEIGHBORS=5
-WARMUP=1
+WARMUP=0
 
 # for each model run benchmark in 4 configs: NO_HT+NO_AFF, NO_HT+AFF, HT+NO_AFF, HT+AFF
 for nr_workers in ${NUM_WORKERS[@]}; do
