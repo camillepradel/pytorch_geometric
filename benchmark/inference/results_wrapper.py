@@ -89,7 +89,7 @@ if __name__ == '__main__':
     
     platform = "SPR"
     
-    CWD=f'pytorch_geometric/benchmark/inference/logs/redo/{platform}'
+    CWD=f'pytorch_geometric/benchmark/inference/logs/test/{platform}'
     LOGS=f"{CWD}/logs"
     SUMMARY=f"{CWD}/summary_{platform}.csv"
     PLOTS=f'{CWD}/plots'

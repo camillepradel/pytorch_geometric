@@ -11,14 +11,14 @@ mkdir -p logs
 declare -a HT=(0 1)
 declare -a AFFINITY=(0 1)
 declare -a MODELS=('gcn' 'gat' 'rgcn')
-declare -a NUM_WORKERS=(0 1 2 4 8 16)
+declare -a NUM_WORKERS=(0 1 2 3 4 8 16 24)
 
 # inputs for the script
 BATCH_SIZE=512
 NUM_HIDDEN_CHANNELS=256
 NUM_LAYERS=3
 HETERO_NEIGHBORS=5
-WARMUP=0
+WARMUP=1
 
 # for each model run benchmark in 4 configs: NO_HT+NO_AFF, NO_HT+AFF, HT+NO_AFF, HT+AFF
 for nr_workers in ${NUM_WORKERS[@]}; do
