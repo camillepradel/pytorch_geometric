@@ -52,6 +52,7 @@ from .virtual_node import VirtualNode
 from .add_positional_encoding import AddLaplacianEigenvectorPE, AddRandomWalkPE
 from .feature_propagation import FeaturePropagation
 from .mask import IndexToMask, MaskToIndex
+from .add_node_feature import AddNodeFeature
 
 __all__ = [
     'BaseTransform',
@@ -78,6 +79,7 @@ __all__ = [
     'RandomScale',
     'RandomRotate',
     'RandomShear',
+    'AddNodeFeature',
     'NormalizeFeatures',
     'AddSelfLoops',
     'RemoveIsolatedNodes',
