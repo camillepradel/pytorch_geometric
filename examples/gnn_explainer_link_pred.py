@@ -36,14 +36,18 @@ class Net(torch.nn.Module):
         x = self.conv1(x, edge_index).relu()
         return self.conv2(x, edge_index)
 
-    def decode(self, z, edge_index):
-        src, dst = edge_index
+    def decode(self, z, edge_label_index):
+        src, dst = edge_label_index
         return (z[src] * z[dst]).sum(dim=-1)
 
-    def forward(self, x, edge_index):
+    def forward(self, x, edge_index, edge_label_index,
+                cast_to_multiclass=False):
         z = model.encode(x, edge_index)
-        out = model.decode(z, edge_index).view(-1).sigmoid()
-        return torch.stack((1 - out, out), dim=-1)
+        out = model.decode(z, edge_label_index).view(-1)
+        if cast_to_multiclass:
+            out = out.sigmoid()
+            out = torch.stack((1 - out, out), dim=-1)
+        return out
 
 
 model = Net(dataset.num_features, 128, 64).to(device)
@@ -69,8 +73,7 @@ def train():
         train_data.edge_label.new_zeros(neg_edge_index.size(1))
     ], dim=0)
 
-    z = model.encode(train_data.x, train_data.edge_index)
-    out = model.decode(z, edge_label_index).view(-1)
+    out = model(train_data.x, train_data.edge_index, edge_label_index)
     loss = criterion(out, edge_label)
     loss.backward()
     optimizer.step()
@@ -80,8 +83,7 @@ def train():
 @torch.no_grad()
 def test(data):
     model.eval()
-    z = model.encode(train_data.x, train_data.edge_index)
-    out = model.decode(z, data.edge_label_index).view(-1).sigmoid()
+    out = model(data.x, data.edge_index, data.edge_label_index).sigmoid()
     return roc_auc_score(data.edge_label.cpu().numpy(), out.cpu().numpy())
 
 
@@ -98,14 +100,32 @@ for epoch in range(1, 11):
 
 print(f'Final Test: {final_test_auc:.4f}')
 
+# explain the model output on an edge from the validation dataset
+model_config = ModelConfig(mode="classification", task_level="edge",
+                           return_type="probs")
+kwargs = {
+    "edge_label_index": val_data.edge_label_index[:, 0],
+    "cast_to_multiclass": True
+}
 explainer = Explainer(
     model=model, algorithm=GNNExplainer(epochs=200),
     explainer_config=ExplainerConfig(explanation_type="model",
                                      node_mask_type="attributes",
                                      edge_mask_type="object"),
-    model_config=ModelConfig(mode="classification", task_level="edge",
-                             return_type="raw"))
-edge_idx = 10
+    model_config=model_config)
 explanation = explainer(x=train_data.x, edge_index=train_data.edge_index,
-                        index=edge_idx, target_index=None)
+                        index=0, target_index=None, **kwargs)
+print(explanation.available_explanations)
+
+# explain a phenomenon that the model should predict on an edge from the
+# validation dataset
+explainer = Explainer(
+    model=model, algorithm=GNNExplainer(epochs=200),
+    explainer_config=ExplainerConfig(explanation_type="phenomenon",
+                                     node_mask_type="attributes",
+                                     edge_mask_type="object"),
+    model_config=model_config)
+target = val_data.edge_label[0].unsqueeze(dim=0).long()
+explanation = explainer(x=train_data.x, edge_index=train_data.edge_index,
+                        target=target, index=0, target_index=None, **kwargs)
 print(explanation.available_explanations)
