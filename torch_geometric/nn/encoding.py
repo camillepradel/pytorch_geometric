@@ -90,7 +90,8 @@ class TemporalEncoding(torch.nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         """"""
-        return torch.cos(x.view(-1, 1) @ self.weight)
+        return torch.cos(x.view(-1, 1) @ self.weight).view(x.shape +
+                                                           tuple([-1]))
 
     def __repr__(self) -> str:
         return f'{self.__class__.__name__}({self.out_channels})'
