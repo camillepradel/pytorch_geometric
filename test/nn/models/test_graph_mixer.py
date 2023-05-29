@@ -5,6 +5,7 @@ from torch_geometric.loader import TemporalDataLoader
 from torch_geometric.nn.encoding import TemporalEncoding
 from torch_geometric.nn.models.graph_mixer import (
     LinkEncoder,
+    NodeEncoder,
     TemporalLinkInformation,
 )
 
@@ -97,20 +98,48 @@ def test_link_encoder():
                                hidden_channels=hidden_channels,
                                time_dim=time_dim)
 
-    for i, batch in enumerate(loader):
+    for _, batch in enumerate(loader):
         n_id_t_ref_unique_pairs = torch.cat([
             torch.cat([batch.src, batch.dst])[None, :],
             batch.t.repeat(2)[None, :]
         ], dim=0).unique(dim=1)
         n_id = n_id_t_ref_unique_pairs[0]
         t_ref = n_id_t_ref_unique_pairs[1]
-        z = link_encoder(n_id, t_ref)
+        t = link_encoder(n_id, t_ref)
         link_encoder.update_state(batch.src, batch.dst, batch.t, batch.msg)
 
-        assert z.size(0) == n_id.size(0)
-        assert z.size(1) == hidden_channels + time_dim
+        assert t.size(0) == n_id.size(0)
+        assert t.size(1) == hidden_channels + time_dim
+
+
+def test_node_encoder():
+    hidden_channels = 16
+
+    src = torch.tensor([0, 1, 0, 2, 0, 3, 1, 4, 2, 3])
+    dst = torch.tensor([1, 2, 1, 1, 3, 2, 4, 3, 3, 4])
+    t = torch.arange(10)
+    msg = torch.randn(10, hidden_channels)
+    data = TemporalData(src=src, dst=dst, t=t, msg=msg)
+
+    loader = TemporalDataLoader(data, batch_size=5)
+
+    node_encoder = NodeEncoder(num_nodes=data.num_nodes, memory_length=5)
+
+    for _, batch in enumerate(loader):
+        n_id_t_ref_unique_pairs = torch.cat([
+            torch.cat([batch.src, batch.dst])[None, :],
+            batch.t.repeat(2)[None, :]
+        ], dim=0).unique(dim=1)
+        n_id = n_id_t_ref_unique_pairs[0]
+        t_ref = n_id_t_ref_unique_pairs[1]
+        s = node_encoder(n_id, t_ref)
+        node_encoder.update_state(batch.src, batch.dst, batch.t)
+
+        assert s.size(0) == 10
+        assert s.size(1) == data.num_nodes
 
 
 if __name__ == "__main__":
     # test_temporal_link_information()
-    test_link_encoder()
+    # test_link_encoder()
+    test_node_encoder()

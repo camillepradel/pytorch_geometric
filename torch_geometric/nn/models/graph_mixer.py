@@ -8,18 +8,16 @@ from torch_geometric.nn.inits import zeros
 
 class TemporalLinkInformation():
     def __init__(self, num_nodes: int, size: int, hidden_channels: int,
-                 time_dim: int, device=None):
+                 time_dim: int):
         super().__init__()
 
         self.num_nodes = num_nodes
         self.size = size
         self.hidden_channels = hidden_channels
-        self.device = device
         self.msg_store = torch.zeros((num_nodes, size, hidden_channels),
-                                     dtype=torch.float, device=device)
-        self.t = torch.zeros((num_nodes, size), dtype=torch.float,
-                             device=device)
-        self.msg_count = torch.empty(num_nodes, dtype=torch.int, device=device)
+                                     dtype=torch.float)
+        self.t = torch.zeros((num_nodes, size), dtype=torch.float)
+        self.msg_count = torch.empty(num_nodes, dtype=torch.int)
         self.time_enc = TemporalEncoding(time_dim)
         self.reset_state()
 
@@ -96,11 +94,11 @@ class MLPMixer(torch.nn.Module):
 
 class LinkEncoder(torch.nn.Module):
     def __init__(self, num_nodes: int, size: int, hidden_channels: int,
-                 time_dim: int, dropout=0, device=None):
+                 time_dim: int, dropout=0):
         super().__init__()
         self.temporal_link_information = TemporalLinkInformation(
             num_nodes=num_nodes, size=size, hidden_channels=hidden_channels,
-            time_dim=time_dim, device=device)
+            time_dim=time_dim)
         self.mlp_mixer = MLPMixer(dims=hidden_channels + time_dim,
                                   dropout=dropout)
         self.reset_parameters()
@@ -119,3 +117,48 @@ class LinkEncoder(torch.nn.Module):
 
     def reset_state(self):
         self.temporal_link_information.reset_state()
+
+
+class NodeEncoder:
+    def __init__(self, num_nodes: int, memory_length: float,
+                 node_emb: Tensor = None, device=None):
+        super().__init__()
+        if node_emb:
+            self.node_emb = node_emb
+        else:
+            self.node_emb = torch.eye(num_nodes, device=device)
+        self.node_dim = self.node_emb.shape[1]
+        self.num_nodes = num_nodes
+        self.memory_length = memory_length
+        self.device = device
+        self.reset_state()
+
+    def __call__(self, n_id: Tensor, t: Tensor) -> Tensor:
+        result = self.node_emb[n_id]
+        for i in range(n_id.shape[0]):
+            mask = self.neighbors_t[n_id[i]] > t[i] - self.memory_length
+            self.neighbors_id[n_id[i]] = self.neighbors_id[n_id[i]][mask]
+            self.neighbors_t[n_id[i]] = self.neighbors_t[n_id[i]][mask]
+            if self.neighbors_id[n_id[i]].numel():
+                result[i] = torch.mean(
+                    self.node_emb[self.neighbors_id[n_id[i]]], dim=0)
+        return result
+
+    def update_state(self, src: Tensor, dst: Tensor, t: Tensor):
+        for i in range(src.shape[0]):
+            self.neighbors_id[src[i]] = torch.cat(
+                [self.neighbors_id[src[i]], dst[i].view(1)])
+            self.neighbors_id[dst[i]] = torch.cat(
+                [self.neighbors_id[dst[i]], src[i].view(1)])
+            self.neighbors_t[src[i]] = torch.cat(
+                [self.neighbors_t[src[i]], t[i].view(1)])
+            self.neighbors_t[dst[i]] = torch.cat(
+                [self.neighbors_t[dst[i]], t[i].view(1)])
+
+    def reset_state(self):
+        self.neighbors_id = [
+            torch.empty(0, dtype=torch.long, device=self.device)
+        ] * self.num_nodes
+        self.neighbors_t = [
+            torch.empty(0, dtype=torch.float, device=self.device)
+        ] * self.num_nodes
